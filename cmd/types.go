@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 )
 
 var (
@@ -25,4 +26,10 @@ type Command interface {
 	Describe() string
 	// Flagset which defines the flags for the command
 	Flagset() *flag.FlagSet
+}
+
+type ArgNotFoundError string
+
+func (err ArgNotFoundError) Error() string {
+	return fmt.Sprintf("'%s' is not a valid argument\n", err.Error())
 }
