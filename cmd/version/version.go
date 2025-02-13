@@ -18,6 +18,10 @@ type command struct {
 	getVersionCmd func() (*debug.BuildInfo, bool)
 }
 
+func Command() *command {
+	return &command{}
+}
+
 // Setup sets up the *command.
 func (c *command) Setup() error {
 	c.getVersionCmd = debug.ReadBuildInfo
