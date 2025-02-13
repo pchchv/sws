@@ -3,6 +3,7 @@ package version
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"runtime/debug"
 )
@@ -25,7 +26,7 @@ func (c *command) Setup() error {
 
 // Help helps by printing out the help.
 func (c *command) Help() string {
-	return "Print the version of wd-41"
+	return "Print the version of sws"
 }
 
 // Run runs the *command, printing the version using either debugbuild or tagged version.
@@ -48,4 +49,15 @@ func (c *command) Run(context.Context) error {
 	fmt.Printf("version: %v, go version: %v, checksum: %v\n", version, bi.GoVersion, checksum)
 
 	return nil
+}
+
+// Describe describes the version *command.
+func (c *command) Describe() string {
+	return "print the version of sws"
+}
+
+// Flagset sets the flagset for the version.
+// By default is empty.
+func (c *command) Flagset() *flag.FlagSet {
+	return flag.NewFlagSet("version", flag.ExitOnError)
 }
