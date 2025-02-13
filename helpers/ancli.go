@@ -1,6 +1,7 @@
 package helpers
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -26,4 +27,8 @@ const (
 func SetupSlog() {
 	slogger = slog.New(&ansiprint{})
 	SlogIt = true
+}
+
+func ColoredMessage(cc colorCode, msg string) string {
+	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", cc, msg)
 }
