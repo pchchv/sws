@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/pchchv/sws/cmd"
-	"github.com/pchchv/sws/helpers"
+	"github.com/pchchv/sws/helpers/ancli"
 )
 
 func printHelp(command cmd.Command, err error, printUsage cmd.UsagePrinter) int {
 	var notValidArg cmd.ArgNotFoundError
 	if errors.As(err, &notValidArg) {
-		helpers.PrintErr(err.Error())
+		ancli.PrintErr(err.Error())
 		printUsage()
 	} else if errors.Is(err, cmd.ErrNoArgs) {
 		printUsage()
@@ -23,14 +23,14 @@ func printHelp(command cmd.Command, err error, printUsage cmd.UsagePrinter) int 
 		}
 		return 0
 	} else {
-		helpers.PrintfErr("unknown error: %v", err.Error())
+		ancli.PrintfErr("unknown error: %v", err.Error())
 	}
 
 	return 1
 }
 
 func main() {
-	helpers.Newline = true
-	helpers.SlogIt = true
-	helpers.SetupSlog()
+	ancli.Newline = true
+	ancli.SlogIt = true
+	ancli.SetupSlog()
 }
