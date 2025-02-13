@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/pchchv/sws/helpers/ansiprint"
 )
 
 var (
@@ -27,7 +29,7 @@ const (
 )
 
 func SetupSlog() {
-	slogger = slog.New(&ansiprint{})
+	slogger = slog.New(&ansiprint.ANSIPrint{})
 	SlogIt = true
 }
 

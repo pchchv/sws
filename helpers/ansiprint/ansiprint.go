@@ -1,4 +1,4 @@
-package helpers
+package ansiprint
 
 import (
 	"bytes"
@@ -9,13 +9,13 @@ import (
 	"time"
 )
 
-type ansiprint struct{}
+type ANSIPrint struct{}
 
-func (a *ansiprint) Enabled(context.Context, slog.Level) bool {
+func (a *ANSIPrint) Enabled(context.Context, slog.Level) bool {
 	return true
 }
 
-func (a *ansiprint) Handle(ctx context.Context, r slog.Record) error {
+func (a *ANSIPrint) Handle(ctx context.Context, r slog.Record) error {
 	var bf bytes.Buffer
 	if !r.Time.IsZero() {
 		fmt.Fprintf(&bf, "%v %v", r.Time.Format(time.RFC3339), r.Message)
@@ -31,10 +31,10 @@ func (a *ansiprint) Handle(ctx context.Context, r slog.Record) error {
 	return nil
 }
 
-func (a *ansiprint) WithAttrs(attrs []slog.Attr) slog.Handler {
+func (a *ANSIPrint) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return a
 }
 
-func (a *ansiprint) WithGroup(name string) slog.Handler {
+func (a *ANSIPrint) WithGroup(name string) slog.Handler {
 	return a
 }
