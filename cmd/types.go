@@ -2,8 +2,18 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"flag"
 )
+
+var (
+	ErrHelpful = errors.New("user needs help")
+	ErrNoArgs  = errors.New("no arguments found")
+)
+
+type UsagePrinter func()
+
+type ArgParser func([]string) (Command, error)
 
 type Command interface {
 	Setup() error
