@@ -35,6 +35,14 @@ func ColoredMessage(cc colorCode, msg string) string {
 	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", cc, msg)
 }
 
+func PrintErr(msg string) {
+	printStatus(os.Stderr, "error", msg, RED)
+}
+
+func PrintfErr(msg string, a ...any) {
+	PrintErr(fmt.Sprintf(msg, a...))
+}
+
 func printStatus(out io.Writer, status, msg string, color colorCode) {
 	rawStatus := status
 	if useColor {
