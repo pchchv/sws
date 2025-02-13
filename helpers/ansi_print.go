@@ -30,3 +30,11 @@ func (a *ansiprint) Handle(ctx context.Context, r slog.Record) error {
 
 	return nil
 }
+
+func (a *ansiprint) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return a
+}
+
+func (a *ansiprint) WithGroup(name string) slog.Handler {
+	return a
+}
