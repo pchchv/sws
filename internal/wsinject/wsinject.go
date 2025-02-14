@@ -6,13 +6,18 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
 )
+
+const deltaStreamer = `<!-- This script has been injected by sws and allows hot reloads -->
+<script type="module" src="delta-streamer.js"></script>`
 
 var ErrNoHeaderTagFound = errors.New("no header tag found")
 
@@ -80,4 +85,42 @@ func injectScript(html []byte, scriptTag string) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func injectWebsocketScript(b []byte) (bool, []byte, error) {
+	var injected bool
+	contentType := http.DetectContentType(b)
+	// only act on html files
+	if !strings.Contains(contentType, "text/html") {
+		return injected, b, nil
+	}
+
+	injected = true
+	b, err := injectScript(b, deltaStreamer)
+	if err != nil {
+		if !errors.Is(err, ErrNoHeaderTagFound) {
+			return injected, nil, fmt.Errorf("failed to inject script tag: %w", err)
+		} else {
+			injected = false
+		}
+	}
+
+	return injected, b, nil
+}
+
+func (fs *Fileserver) writeDeltaStreamerScript() error {
+	var tlsS string
+	if fs.expectTLS {
+		tlsS = "s"
+	}
+
+	err := os.WriteFile(
+		path.Join(fs.mirrorPath, "delta-streamer.js"),
+		[]byte(fmt.Sprintf(deltaStreamerSourceCode, tlsS, fs.wsPort, fs.wsPath, fs.forceReload)),
+		0o755)
+	if err != nil {
+		return fmt.Errorf("failed to write delta-streamer.js: %w", err)
+	}
+
+	return nil
 }
