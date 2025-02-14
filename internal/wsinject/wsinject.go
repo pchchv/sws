@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/pchchv/sws/helpers/ancli"
 )
 
 const deltaStreamer = `<!-- This script has been injected by sws and allows hot reloads -->
@@ -123,4 +124,46 @@ func (fs *Fileserver) writeDeltaStreamerScript() error {
 	}
 
 	return nil
+}
+
+func (fs *Fileserver) mirrorFile(origPath string) error {
+	relativePath := strings.Replace(origPath, fs.masterPath, "", -1)
+	fileB, err := os.ReadFile(origPath)
+	if err != nil {
+		return fmt.Errorf("failed to read file on path: '%v', err: %v", origPath, err)
+	}
+
+	injected, injectedBytes, err := injectWebsocketScript(fileB)
+	if err != nil {
+		return fmt.Errorf("failed to inject websocket script: %v", err)
+	} else if injected {
+		ancli.PrintfNotice("injected delta-streamer script loading tag in: '%v'", origPath)
+	}
+
+	mirroredPath := path.Join(fs.mirrorPath, relativePath)
+	relativePathDir := path.Dir(mirroredPath)
+	if err = os.MkdirAll(relativePathDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create relative dir: '%v', error: %v", relativePathDir, err)
+	}
+
+	if err = os.WriteFile(mirroredPath, injectedBytes, 0o755); err != nil {
+		return fmt.Errorf("failed to write mirrored file: %w", err)
+	}
+
+	return nil
+}
+
+func (fs *Fileserver) mirrorMaker(p string, info os.DirEntry, err error) error {
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		if err = fs.watcher.Add(p); err != nil {
+			return fmt.Errorf("failed to add recursive path: %v", err)
+		}
+		return nil
+	}
+
+	return fs.mirrorFile(p)
 }
