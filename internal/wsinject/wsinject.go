@@ -56,6 +56,26 @@ func NewFileServer(wsPort int, wsPath string, forceReload, expectTLS bool) *File
 	}
 }
 
+func (fs *Fileserver) Setup(pathToMaster string) (string, error) {
+	ancli.PrintfNotice("mirroring root: '%v'", pathToMaster)
+	fs.masterPath = pathToMaster
+	watcher, err := fsnotify.NewWatcher()
+	fs.watcher = watcher
+	if err != nil {
+		return "", fmt.Errorf("failed to create fsnotify watcher: %e", err)
+	}
+
+	if err = wsInjectMaster(pathToMaster, fs.mirrorMaker); err != nil {
+		return "", fmt.Errorf("failed to create websocket injected mirror: %e", err)
+	}
+
+	if err = fs.writeDeltaStreamerScript(); err != nil {
+		return "", fmt.Errorf("failed to write delta streamer file: %e", err)
+	}
+
+	return fs.mirrorPath, nil
+}
+
 func wsInjectMaster(root string, do func(path string, d fs.DirEntry, err error) error) error {
 	if err := filepath.WalkDir(root, do); err != nil {
 		log.Fatalf("Error walking the path %q: %v\n", root, err)
@@ -74,15 +94,15 @@ func injectScript(html []byte, scriptTag string) ([]byte, error) {
 	var buf bytes.Buffer
 	// write the HTML up to the closing `</head>` tag
 	if _, err := buf.WriteString(htmlStr[:idx]); err != nil {
-		return nil, fmt.Errorf("failed to write pre: %w", err)
+		return nil, fmt.Errorf("failed to write pre: %e", err)
 	}
 
 	if _, err := buf.WriteString(scriptTag); err != nil {
-		return nil, fmt.Errorf("failed to write script tag: %w", err)
+		return nil, fmt.Errorf("failed to write script tag: %e", err)
 	}
 
 	if _, err := buf.WriteString(htmlStr[idx:]); err != nil {
-		return nil, fmt.Errorf("failed to write post: %w", err)
+		return nil, fmt.Errorf("failed to write post: %e", err)
 	}
 
 	return buf.Bytes(), nil
@@ -100,7 +120,7 @@ func injectWebsocketScript(b []byte) (bool, []byte, error) {
 	b, err := injectScript(b, deltaStreamer)
 	if err != nil {
 		if !errors.Is(err, ErrNoHeaderTagFound) {
-			return injected, nil, fmt.Errorf("failed to inject script tag: %w", err)
+			return injected, nil, fmt.Errorf("failed to inject script tag: %e", err)
 		} else {
 			injected = false
 		}
@@ -120,7 +140,7 @@ func (fs *Fileserver) writeDeltaStreamerScript() error {
 		[]byte(fmt.Sprintf(deltaStreamerSourceCode, tlsS, fs.wsPort, fs.wsPath, fs.forceReload)),
 		0o755)
 	if err != nil {
-		return fmt.Errorf("failed to write delta-streamer.js: %w", err)
+		return fmt.Errorf("failed to write delta-streamer.js: %e", err)
 	}
 
 	return nil
@@ -135,7 +155,7 @@ func (fs *Fileserver) mirrorFile(origPath string) error {
 
 	injected, injectedBytes, err := injectWebsocketScript(fileB)
 	if err != nil {
-		return fmt.Errorf("failed to inject websocket script: %v", err)
+		return fmt.Errorf("failed to inject websocket script: %e", err)
 	} else if injected {
 		ancli.PrintfNotice("injected delta-streamer script loading tag in: '%v'", origPath)
 	}
@@ -147,7 +167,7 @@ func (fs *Fileserver) mirrorFile(origPath string) error {
 	}
 
 	if err = os.WriteFile(mirroredPath, injectedBytes, 0o755); err != nil {
-		return fmt.Errorf("failed to write mirrored file: %w", err)
+		return fmt.Errorf("failed to write mirrored file: %e", err)
 	}
 
 	return nil
@@ -160,7 +180,7 @@ func (fs *Fileserver) mirrorMaker(p string, info os.DirEntry, err error) error {
 
 	if info.IsDir() {
 		if err = fs.watcher.Add(p); err != nil {
-			return fmt.Errorf("failed to add recursive path: %v", err)
+			return fmt.Errorf("failed to add recursive path: %e", err)
 		}
 		return nil
 	}
