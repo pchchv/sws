@@ -2,6 +2,7 @@ package wsinject
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -74,6 +75,27 @@ func (fs *Fileserver) Setup(pathToMaster string) (string, error) {
 	}
 
 	return fs.mirrorPath, nil
+}
+
+// Start starts listening to file events,
+// update mirror and stream notifications on which files to update.
+func (fs *Fileserver) Start(ctx context.Context) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case fsEv, ok := <-fs.watcher.Events:
+			if !ok {
+				return errors.New("fsnotify watcher event channel closed")
+			}
+			fs.handleFileEvent(fsEv)
+		case fsErr, ok := <-fs.watcher.Errors:
+			if !ok {
+				return errors.New("fsnotify watcher error channel closed")
+			}
+			return fsErr
+		}
+	}
 }
 
 func wsInjectMaster(root string, do func(path string, d fs.DirEntry, err error) error) error {
