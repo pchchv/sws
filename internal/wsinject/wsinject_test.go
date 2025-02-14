@@ -1,12 +1,15 @@
 package wsinject
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pchchv/sws/helpers/ancli"
 )
@@ -127,5 +130,107 @@ func Test_Setup(t *testing.T) {
 	t.Run("it should write the delta streamer file to root of mirror", func(t *testing.T) {
 		mirrorFilePath := path.Join(fs.mirrorPath, "delta-streamer.js")
 		checkIfDeltaStreamerExists(t, mirrorFilePath)
+	})
+}
+
+func Test_Start(t *testing.T) {
+	setup := func(t *testing.T) (*Fileserver, testFileSystem) {
+		t.Helper()
+		tmpDir := t.TempDir()
+		nestedDir := path.Join(tmpDir, "nested")
+		err := os.MkdirAll(nestedDir, 0o777)
+		if err != nil {
+			t.Fatalf("failed to create temp dir: %v", err)
+		}
+		return NewFileServer(8080, "/delta-streamer-ws.js", false, false), testFileSystem{
+			root:      tmpDir,
+			nestedDir: nestedDir,
+		}
+	}
+
+	t.Run("it should break on context cancel", func(t *testing.T) {
+		fs, _ := setup(t)
+		_, err := fs.Setup(t.TempDir())
+		if err != nil {
+			t.Fatalf("failed to setup test fileserver: %v", err)
+		}
+
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		t.Cleanup(cancel)
+
+		done := make(chan struct{})
+		go func() {
+			fs.Start(timeoutCtx)
+			close(done)
+		}()
+
+		select {
+		case <-done:
+			// if the fs starts, we expect it to break on context cancel.
+			t.Fatalf("expected fs to break on context cancel, but it did not")
+		case <-timeoutCtx.Done():
+			// timeout means the context was cancelled as expected
+		}
+	})
+
+	t.Run("file changes", func(t *testing.T) {
+		setupReadyFs := func(t *testing.T) (testFileSystem, chan error, chan string, context.Context) {
+			t.Helper()
+			fs, testFileSystem := setup(t)
+			testFileSystem.addRootFile(t, "")
+			fs.Setup(testFileSystem.root)
+			refreshChan := make(chan string)
+			fs.registerWs("mock", refreshChan)
+			timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+			t.Cleanup(cancel)
+			earlyFail := make(chan error, 1)
+			awaitFsStart := make(chan struct{})
+			go func() {
+				close(awaitFsStart)
+				err := fs.Start(timeoutCtx)
+				if err != nil {
+					earlyFail <- err
+				}
+			}()
+
+			<-awaitFsStart
+			// Give the Start a moment to actually start, not just the routine
+			time.Sleep(time.Millisecond)
+			return testFileSystem, earlyFail, refreshChan, timeoutCtx
+		}
+
+		t.Run("it should send a reload event on file changes", func(t *testing.T) {
+			testFileSystem, earlyFail, refreshChan, timeoutCtx := setupReadyFs(t)
+			testFile := testFileSystem.rootDirFilePaths[0]
+			os.WriteFile(testFile, []byte("changes!"), 0o755)
+
+			select {
+			case err := <-earlyFail:
+				t.Fatalf("start failed: %v", err)
+			case got := <-refreshChan:
+				expected := "/" + filepath.Base(testFile)
+				if got != expected {
+					t.Fatalf("expected reload event to be %v, but got %v", expected, got)
+				}
+			case <-timeoutCtx.Done():
+				t.Fatal("failed to receive refresh within time")
+			}
+		})
+
+		t.Run("it should send a reload event on file additions", func(t *testing.T) {
+			testFileSystem, earlyFail, refreshChan, timeoutCtx := setupReadyFs(t)
+			testFile := testFileSystem.addRootFile(t, "")
+			select {
+			case err := <-earlyFail:
+				t.Fatalf("start failed: %v", err)
+			case got := <-refreshChan:
+				expected := "/" + filepath.Base(testFile)
+				if got != expected {
+					t.Fatalf("expected reload event to be %v, but got %v", expected, got)
+				}
+			case <-timeoutCtx.Done():
+				t.Fatal("failed to receive refresh within time")
+			}
+		})
 	})
 }
