@@ -1,6 +1,7 @@
 package wsinject
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"slices"
@@ -22,6 +23,24 @@ const mockHtml = `<!DOCTYPE html>
 
   </body>
 </html>`
+
+type testFileSystem struct {
+	root             string
+	rootDirFilePaths []string
+	nestedDir        string
+}
+
+func (tfs *testFileSystem) addRootFile(t *testing.T, suffix string) string {
+	t.Helper()
+	fileName := fmt.Sprintf("file_%v%v", len(tfs.rootDirFilePaths), suffix)
+	path := path.Join(tfs.root, fileName)
+	if err := os.WriteFile(path, []byte(mockHtml), 0o777); err != nil {
+		t.Fatalf("failed to write root file: %v", err)
+	}
+
+	tfs.rootDirFilePaths = append(tfs.rootDirFilePaths, path)
+	return path
+}
 
 func Test_walkDir(t *testing.T) {
 	t.Run("it should visit every file ", func(t *testing.T) {
