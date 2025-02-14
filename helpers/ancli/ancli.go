@@ -86,3 +86,15 @@ func PrintNotice(msg string) {
 func PrintfNotice(msg string, a ...any) {
 	PrintNotice(fmt.Sprintf(msg, a...))
 }
+
+func PrintOK(msg string) {
+	printStatus(os.Stdout, "ok", msg, GREEN)
+}
+
+func PrintfOK(msg string, a ...any) {
+	PrintOK(fmt.Sprintf(msg, a...))
+}
+
+func Okf(msg string, a ...any) {
+	PrintOK(fmt.Sprintf(msg, a...))
+}
