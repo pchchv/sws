@@ -30,6 +30,19 @@ func (fs *Fileserver) wsDispatcherStart() {
 	}
 }
 
+func (fs *Fileserver) registerWs(name string, c chan string) {
+	if !read(fs.wsDispatcherStartedMu, fs.wsDispatcherStarted) {
+		go fs.wsDispatcherStart()
+		write(fs.wsDispatcherStartedMu, true, fs.wsDispatcherStarted)
+	}
+	ancli.PrintfNotice("registering: '%v'", name)
+	fs.wsDispatcher.Store(name, c)
+}
+
+func (fs *Fileserver) deregisterWs(name string) {
+	fs.wsDispatcher.Delete(name)
+}
+
 // Reads by locking the mutex before taking a copy, will then return the copy.
 func read[T any](m *sync.Mutex, src *T) T {
 	m.Lock()
