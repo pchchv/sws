@@ -78,3 +78,11 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 		fmt.Fprintf(out, "%v: %v%v", status, msg, newline)
 	}
 }
+
+func PrintNotice(msg string) {
+	printStatus(os.Stdout, "notice", msg, CYAN)
+}
+
+func PrintfNotice(msg string, a ...any) {
+	PrintNotice(fmt.Sprintf(msg, a...))
+}
