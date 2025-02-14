@@ -5,8 +5,8 @@ import (
 	"math/rand"
 	"sync"
 
+	"github.com/gorilla/websocket"
 	"github.com/pchchv/sws/helpers/ancli"
-	"golang.org/gorilla/websocket"
 )
 
 // WsHandler sends page reload notifications to the connected websocket.
@@ -15,17 +15,23 @@ func (fs *Fileserver) WsHandler(ws *websocket.Conn) {
 	killChan := make(chan struct{})
 	name := "ws-" + fmt.Sprintf("%v", rand.Int())
 	go func() {
-		ancli.PrintfOK("new websocket connection: '%v'", ws.Config().Origin)
+		ancli.PrintfOK("new websocket connection: '%v'", ws.RemoteAddr())
 		for {
-			pageToReload, ok := <-reloadChan
-			if !ok {
-				killChan <- struct{}{}
-			}
-			err := websocket.Message.Send(ws, pageToReload)
-			if err != nil {
-				// exit on error
-				ancli.PrintfErr("ws: failed to send message via ws: %e", err)
-				killChan <- struct{}{}
+			select {
+			case pageToReload, ok := <-reloadChan:
+				if !ok {
+					killChan <- struct{}{}
+					return
+				}
+				err := ws.WriteMessage(websocket.TextMessage, []byte(pageToReload))
+				if err != nil {
+					// exit on error
+					ancli.PrintfErr("ws: failed to send message via ws: %e", err)
+					killChan <- struct{}{}
+					return
+				}
+			case <-killChan:
+				return
 			}
 		}
 	}()
@@ -35,8 +41,8 @@ func (fs *Fileserver) WsHandler(ws *websocket.Conn) {
 	<-killChan
 	ancli.PrintOK("websocket disconnected")
 	fs.deregisterWs(name)
-	if err := ws.WriteClose(1005); err != nil {
-		ancli.PrintfErr("ws-listener: '%s' got err when writeclosing: %e", name, err)
+	if err := ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(1005, "")); err != nil {
+		ancli.PrintfErr("ws-listener: '%s' got err when sending close message: %e", name, err)
 	}
 
 	if err := ws.Close(); err != nil {

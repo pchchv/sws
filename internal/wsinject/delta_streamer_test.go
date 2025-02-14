@@ -2,19 +2,20 @@ package wsinject
 
 import (
 	"fmt"
+	"net"
+	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/pchchv/sws/helpers/ancli"
-	"golang.org/gorilla/websocket"
 )
 
 func TestWsHandler(t *testing.T) {
 	ancli.Newline = true
-	setup := func(t *testing.T) (*Fileserver, *websocket.Config, *httptest.Server) {
+	setup := func(t *testing.T) (*Fileserver, *websocket.Dialer, *httptest.Server) {
 		t.Helper()
 		started := false
 		fs := &Fileserver{
@@ -24,19 +25,29 @@ func TestWsHandler(t *testing.T) {
 			wsDispatcherStartedMu: &sync.Mutex{},
 		}
 
-		server := httptest.NewServer(websocket.Handler(fs.WsHandler))
-		port := strings.Replace(server.URL, "http://127.0.0.1:", "", -1)
-		wsConfig, err := websocket.NewConfig(fmt.Sprintf("ws://localhost:%v", port), "ws://localhost/")
-		if err != nil {
-			t.Fatalf("Failed to create WebSocket config: %v", err)
+		handler := http.NewServeMux()
+		upgrader := websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
 		}
 
-		return fs, wsConfig, server
+		handler.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+			ws, err := upgrader.Upgrade(w, r, nil)
+			if err != nil {
+				t.Fatalf("Failed to upgrade HTTP connection to WebSocket: %v", err)
+			}
+			fs.WsHandler(ws)
+		})
+
+		server := httptest.NewServer(handler)
+		dialer := &websocket.Dialer{}
+		return fs, dialer, server
 	}
 
 	t.Run("it should send messages posted on pageReloadChan", func(t *testing.T) {
-		fs, wsConfig, testServer := setup(t)
-		ws, err := websocket.DialConfig(wsConfig)
+		fs, dialer, testServer := setup(t)
+		ws, _, err := dialer.Dial(fmt.Sprintf("ws://localhost:%v/ws", testServer.Listener.Addr().(*net.TCPAddr).Port), nil)
 		if err != nil {
 			t.Fatalf("Failed to connect to WebSocket: %v", err)
 		}
@@ -49,13 +60,13 @@ func TestWsHandler(t *testing.T) {
 			fs.pageReloadChan <- "test message"
 		}()
 
-		var msg string
-		if err = websocket.Message.Receive(ws, &msg); err != nil {
+		var msg []byte
+		if _, msg, err = ws.ReadMessage(); err != nil {
 			t.Fatalf("Failed to receive message: %v", err)
 		}
 
-		if msg != "test message" {
-			t.Fatalf("Expected 'test message', got: %v", msg)
+		if string(msg) != "test message" {
+			t.Fatalf("Expected 'test message', got: %v", string(msg))
 		}
 
 		close(fs.pageReloadChan)
@@ -67,14 +78,13 @@ func TestWsHandler(t *testing.T) {
 	})
 
 	t.Run("it should handle multiple connections at once", func(t *testing.T) {
-		fs, wsConfig, testServer := setup(t)
-
-		mockWebClient0, err := websocket.DialConfig(wsConfig)
+		fs, dialer, testServer := setup(t)
+		mockWebClient0, _, err := dialer.Dial(fmt.Sprintf("ws://localhost:%v/ws", testServer.Listener.Addr().(*net.TCPAddr).Port), nil)
 		if err != nil {
 			t.Fatalf("Failed to connect to WebSocket: %v", err)
 		}
 
-		mockWebClient1, err := websocket.DialConfig(wsConfig)
+		mockWebClient1, _, err := dialer.Dial(fmt.Sprintf("ws://localhost:%v/ws", testServer.Listener.Addr().(*net.TCPAddr).Port), nil)
 		if err != nil {
 			t.Fatalf("Failed to connect to WebSocket: %v", err)
 		}
@@ -93,17 +103,19 @@ func TestWsHandler(t *testing.T) {
 		}()
 
 		gotMsgChan := make(chan string)
+		errChan := make(chan error)
 		for _, wsClient := range []*websocket.Conn{mockWebClient0, mockWebClient1} {
 			go func(wsClient *websocket.Conn) {
 				for {
-					var msg string
-					websocket.Message.Receive(wsClient, &msg)
-					gotMsgChan <- msg
+					_, msg, err := wsClient.ReadMessage()
+					if err != nil {
+						t.Log(err)
+					}
+					gotMsgChan <- string(msg)
 				}
 			}(wsClient)
 		}
-
-		var want int
+		want := 0
 		for want != 2 {
 			select {
 			case <-time.After(time.Second):
@@ -111,6 +123,8 @@ func TestWsHandler(t *testing.T) {
 			case got := <-gotMsgChan:
 				want += 1
 				t.Logf("got message from mocked ws client: %v", got)
+			case err := <-errChan:
+				t.Fatal(err)
 			}
 		}
 
