@@ -38,7 +38,7 @@ func TestRun(t *testing.T) {
 					Version: "v1.2.3",
 					Sum:     "h1:checksum",
 				},
-				GoVersion: "go1.23.5",
+				GoVersion: "go1.24.0",
 			}, true
 		}
 
@@ -59,7 +59,7 @@ func TestRun(t *testing.T) {
 		_, _ = buf.ReadFrom(r)
 		got := buf.String()
 
-		expected := "version: v1.2.3, go version: go1.23.5, checksum: h1:checksum\n"
+		expected := "version: v1.2.3, go version: go1.24.0, checksum: h1:checksum\n"
 		if got != expected {
 			t.Fatalf("Expected output %q, got %q", expected, got)
 		}
