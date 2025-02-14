@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/pchchv/sws/helpers/ancli"
-	"golang.org/x/net/websocket"
+	"golang.org/gorilla/websocket"
 )
 
 // WsHandler sends page reload notifications to the connected websocket.

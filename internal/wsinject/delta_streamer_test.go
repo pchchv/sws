@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/pchchv/sws/helpers/ancli"
-	"golang.org/x/net/websocket"
+	"golang.org/gorilla/websocket"
 )
 
 func TestWsHandler(t *testing.T) {
