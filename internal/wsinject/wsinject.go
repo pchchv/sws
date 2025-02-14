@@ -187,3 +187,16 @@ func (fs *Fileserver) mirrorMaker(p string, info os.DirEntry, err error) error {
 
 	return fs.mirrorFile(p)
 }
+
+func (fs *Fileserver) notifyPageUpdate(fileName string) {
+	// make filename relative idempotently
+	fs.pageReloadChan <- strings.Replace(fileName, fs.masterPath, "", -1)
+}
+
+func (fs *Fileserver) handleFileEvent(fsEv fsnotify.Event) {
+	if fsEv.Has(fsnotify.Write) {
+		ancli.PrintfNotice("noticed file write in orig file: '%s'", fsEv.Name)
+		fs.mirrorFile(fsEv.Name)
+		fs.notifyPageUpdate(fsEv.Name)
+	}
+}
