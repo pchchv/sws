@@ -63,3 +63,11 @@ func (c *command) Setup() error {
 
 	return nil
 }
+
+func (c *command) Help() string {
+	return "Serve some filesystem. Set the directory as the second argument: sws serve <dir>. If omitted, current wd will be used."
+}
+
+func (c *command) Describe() string {
+	return fmt.Sprintf("a webserver. Usage: '%v serve <path>'. If <path> is left unfilled, current pwd will be used.", c.binPath)
+}
