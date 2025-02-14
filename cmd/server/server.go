@@ -3,9 +3,12 @@ package server
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
+	"path"
 
 	"github.com/gorilla/websocket"
+	"github.com/pchchv/sws/internal/wsinject"
 )
 
 type Fileserver interface {
@@ -33,4 +36,30 @@ func Command() *command {
 	return &command{
 		binPath: r,
 	}
+}
+
+func (c *command) Setup() error {
+	var relPath string
+	if len(c.flagset.Args()) == 0 {
+		wd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get exec path: %e", err)
+		}
+		relPath = wd
+	} else {
+		relPath = c.flagset.Arg(0)
+	}
+	c.masterPath = path.Clean(relPath)
+
+	if c.masterPath != "" {
+		expectTLS := *c.tlsCertPath != "" && *c.tlsKeyPath != ""
+		c.fileserver = wsinject.NewFileServer(*c.port, *c.wsPath, *c.forceReload, expectTLS)
+		mirrorPath, err := c.fileserver.Setup(c.masterPath)
+		if err != nil {
+			return fmt.Errorf("failed to setup websocket injected mirror filesystem: %e", err)
+		}
+		c.mirrorPath = mirrorPath
+	}
+
+	return nil
 }
