@@ -1,10 +1,48 @@
 package wsinject
 
 import (
+	"fmt"
+	"math/rand"
 	"sync"
 
 	"github.com/pchchv/sws/helpers/ancli"
+	"golang.org/x/net/websocket"
 )
+
+// WsHandler sends page reload notifications to the connected websocket.
+func (fs *Fileserver) WsHandler(ws *websocket.Conn) {
+	reloadChan := make(chan string)
+	killChan := make(chan struct{})
+	name := "ws-" + fmt.Sprintf("%v", rand.Int())
+	go func() {
+		ancli.PrintfOK("new websocket connection: '%v'", ws.Config().Origin)
+		for {
+			pageToReload, ok := <-reloadChan
+			if !ok {
+				killChan <- struct{}{}
+			}
+			err := websocket.Message.Send(ws, pageToReload)
+			if err != nil {
+				// exit on error
+				ancli.PrintfErr("ws: failed to send message via ws: %e", err)
+				killChan <- struct{}{}
+			}
+		}
+	}()
+
+	ancli.PrintOK("Listening to file changes on pageReloadChan")
+	fs.registerWs(name, reloadChan)
+	<-killChan
+	ancli.PrintOK("websocket disconnected")
+	fs.deregisterWs(name)
+	if err := ws.WriteClose(1005); err != nil {
+		ancli.PrintfErr("ws-listener: '%s' got err when writeclosing: %e", name, err)
+	}
+
+	if err := ws.Close(); err != nil {
+		ancli.PrintfErr("ws-listener: '%s' got err when closing: %e", name, err)
+	}
+}
 
 func (fs *Fileserver) wsDispatcherStart() {
 	for {
