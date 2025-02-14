@@ -71,3 +71,15 @@ func (c *command) Help() string {
 func (c *command) Describe() string {
 	return fmt.Sprintf("a webserver. Usage: '%v serve <path>'. If <path> is left unfilled, current pwd will be used.", c.binPath)
 }
+
+func (c *command) Flagset() *flag.FlagSet {
+	fs := flag.NewFlagSet("server", flag.ExitOnError)
+	c.port = fs.Int("port", 8080, "port to serve http server on")
+	c.wsPath = fs.String("wsPort", "/delta-streamer-ws", "the path which the delta streamer websocket should be hosted on")
+	c.forceReload = fs.Bool("forceReload", false, "set to true if you wish to reload all attached browser pages on any file change")
+	c.cacheControl = fs.String("cacheControl", "no-cache", "set to configure the cache-control header")
+	c.tlsCertPath = fs.String("tlsCertPath", "", "set to a path to a cert, requires tlsKeyPath to be set")
+	c.tlsKeyPath = fs.String("tlsKeyPath", "", "set to a path to a key, requires tlsCertPath to be set")
+	c.flagset = fs
+	return fs
+}
