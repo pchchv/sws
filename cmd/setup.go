@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/pchchv/sws/cmd/server"
@@ -29,6 +30,37 @@ var commands = map[string]Command{
 
 func PrintUsage() {
 	fmt.Printf(usage, formatCommandDescriptions())
+}
+
+func Parse(args []string) (Command, error) {
+	if len(args) == 1 {
+		return nil, ErrNoArgs
+	}
+
+	var cmdCandidate string
+	for _, arg := range args[1:] {
+		if isHelp(arg) {
+			return nil, ErrHelpful
+		}
+
+		if isFlag := strings.HasPrefix(arg, "-"); isFlag {
+			continue
+		}
+
+		// break on first non-flag
+		cmdCandidate = arg
+		break
+	}
+
+	for cmdNameWithShortcut, cmd := range commands {
+		for _, cmdName := range strings.Split(cmdNameWithShortcut, "|") {
+			if cmdName == cmdCandidate {
+				return cmd, nil
+			}
+		}
+	}
+
+	return nil, ArgNotFoundError(cmdCandidate)
 }
 
 func formatCommandDescriptions() string {
