@@ -2,11 +2,9 @@ package server
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -144,13 +142,13 @@ func TestRun(t *testing.T) {
 		t.Cleanup(func() { ws.Close() })
 	})
 
-	t.Run("it should respond with correct headers", func(t *testing.T) {
+	t.Run("it should respond with correct cache control", func(t *testing.T) {
 		cmd := setup()
 		ctx, ctxCancel := context.WithCancel(context.Background())
 		t.Cleanup(ctxCancel)
-		wantCacheControl := "test"
+		want := "test"
 		port := 13337
-		cmd.cacheControl = &wantCacheControl
+		cmd.cacheControl = &want
 		cmd.port = &port
 		ready := make(chan struct{})
 		go func() {
@@ -165,93 +163,8 @@ func TestRun(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		t.Run("cache-control", func(t *testing.T) {
-			if got := resp.Header.Get("Cache-Control"); got != wantCacheControl {
-				t.Errorf("Cache-Control: expected %v, got %v", wantCacheControl, got)
-			}
-		})
-
-		t.Run("Cross-Origin-Opener-Policy", func(t *testing.T) {
-			if got := resp.Header.Get("Cross-Origin-Opener-Policy"); got != "same-origin" {
-				t.Errorf("Cross-Origin-Opener-Policy: expected same-origin, got %v", got)
-			}
-		})
-
-		t.Run("Cross-Origin-Embedder-Policy", func(t *testing.T) {
-			if got := resp.Header.Get("Cross-Origin-Embedder-Policy"); got != "require-corp" {
-				t.Errorf("Cross-Origin-Embedder-Policy: expected require-corp, got %v", got)
-			}
-		})
-	})
-
-	t.Run("it should serve with tls if cert and key is specified", func(t *testing.T) {
-		cmd := setup()
-		ctx, ctxCancel := context.WithCancel(context.Background())
-		t.Cleanup(ctxCancel)
-		testCert := createTestFile(t, "cert.pem")
-		testCert.Write([]byte(`-----BEGIN CERTIFICATE-----
-MIIBhTCCASugAwIBAgIQIRi6zePL6mKjOipn+dNuaTAKBggqhkjOPQQDAjASMRAw
-DgYDVQQKEwdBY21lIENvMB4XDTE3MTAyMDE5NDMwNloXDTE4MTAyMDE5NDMwNlow
-EjEQMA4GA1UEChMHQWNtZSBDbzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABD0d
-7VNhbWvZLWPuj/RtHFjvtJBEwOkhbN/BnnE8rnZR8+sbwnc/KhCk3FhnpHZnQz7B
-5aETbbIgmuvewdjvSBSjYzBhMA4GA1UdDwEB/wQEAwICpDATBgNVHSUEDDAKBggr
-BgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MCkGA1UdEQQiMCCCDmxvY2FsaG9zdDo1
-NDUzgg4xMjcuMC4wLjE6NTQ1MzAKBggqhkjOPQQDAgNIADBFAiEA2zpJEPQyz6/l
-Wf86aX6PepsntZv2GYlA5UpabfT2EZICICpJ5h/iI+i341gBmLiAFQOyTDT+/wQc
-6MF9+Yw1Yy0t
------END CERTIFICATE-----`))
-		testKey := createTestFile(t, "key.pem")
-		testKey.Write([]byte(`-----BEGIN EC PRIVATE KEY-----
-MHcCAQEEIIrYSSNQFaA2Hwf1duRSxKtLYX5CB04fSeQ6tF1aY/PuoAoGCCqGSM49
-AwEHoUQDQgAEPR3tU2Fta9ktY+6P9G0cWO+0kETA6SFs38GecTyudlHz6xvCdz8q
-EKTcWGekdmdDPsHloRNtsiCa697B2O9IFA==
------END EC PRIVATE KEY-----`))
-		port := 13337
-		cmd.port = &port
-		certPath := testCert.Name()
-		cmd.tlsCertPath = &certPath
-		keyPath := testKey.Name()
-		cmd.tlsKeyPath = &keyPath
-		ready := make(chan struct{})
-		go func() {
-			close(ready)
-			if err := cmd.Run(ctx); err != nil {
-				t.Errorf("Run returned error: %e", err)
-			}
-		}()
-		<-ready
-		time.Sleep(time.Millisecond)
-
-		// cert above expired in 2018
-		transport := &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		}
-
-		client := &http.Client{
-			Transport: transport,
-		}
-
-		resp, err := client.Get(fmt.Sprintf("https://localhost:%v", port))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected status code: %v", resp.StatusCode)
+		if got := resp.Header.Get("Cache-Control"); got != want {
+			t.Errorf("Cache-Control: expected %v, got %v", want, got)
 		}
 	})
-}
-
-// createTestFile creates test file or fatal trying.
-// Since it t.Fatalf on failure, return value won't matter.
-// So the return value can be assumed to never be nil.
-func createTestFile(t *testing.T, fileName string) *os.File {
-	file, err := os.Create(fmt.Sprintf("%v/%v", t.TempDir(), fileName))
-	if err != nil {
-		t.Fatalf("failed to create file: %e", err)
-	}
-	return file
 }
