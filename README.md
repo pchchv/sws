@@ -1,4 +1,4 @@
-# SWS [![GoDoc](https://godoc.org/github.com/pchchv/sws?status.svg)](https://godoc.org/github.com/pchchv/sws)
+# SWS [![GoDoc](https://godoc.org/github.com/pchchv/sws?status.svg)](https://godoc.org/github.com/pchchv/sws) [![Go Report Card](https://goreportcard.com/badge/github.com/pchchv/sws)](https://goreportcard.com/report/github.com/pchchv/sws)
 
 Static web server with live reloading.
 
