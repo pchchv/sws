@@ -89,6 +89,46 @@ func Test_Run_ExitCodes(t *testing.T) {
 	}
 }
 
+func Test_printHelp_ExitCodes(t *testing.T) {
+	mCmd := MockCommand{
+		helpFunc:     func() string { return "Help message" },
+		describeFunc: func() string { return "Describe message" },
+	}
+	tests := []struct {
+		name     string
+		command  cmd.Command
+		err      error
+		expected int
+	}{
+		{
+			name:     "It should exit with code 1 on ArgNotFoundError",
+			command:  mCmd,
+			err:      cmd.ArgNotFoundError("test"),
+			expected: 1,
+		},
+		{
+			name:     "it should exit with code 0 on HelpfulError",
+			command:  mCmd,
+			err:      cmd.ErrHelpful,
+			expected: 0,
+		},
+		{
+			name:     "it should exit with code 1 on unknown errors",
+			command:  mCmd,
+			err:      errors.New("unknown error"),
+			expected: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if result := printHelp(tt.command, tt.err, func() {}); result != tt.expected {
+				t.Errorf("printHelp() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
 func Test_printHelp_output(t *testing.T) {
 	t.Run("it should print cmd help on cmd.HelpfulError", func(t *testing.T) {
 		want := "hello here is helpful message"
