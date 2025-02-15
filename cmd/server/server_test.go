@@ -1,6 +1,24 @@
 package server
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"github.com/gorilla/websocket"
+)
+
+type mockFileServer struct{}
+
+func (m *mockFileServer) Setup(pathToMaster string) (string, error) {
+	return "/mock/mirror/path", nil
+}
+
+func (m *mockFileServer) Start(ctx context.Context) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func (m *mockFileServer) WsHandler(ws *websocket.Conn) {}
 
 func Test_Setup(t *testing.T) {
 	tmpDir := t.TempDir()
