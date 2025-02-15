@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -27,6 +28,36 @@ func printHelp(command cmd.Command, err error, printUsage cmd.UsagePrinter) int 
 	}
 
 	return 1
+}
+
+func run(ctx context.Context, args []string, parseArgs cmd.ArgParser) int {
+	command, err := parseArgs(args)
+	if err != nil {
+		return printHelp(command, err, cmd.PrintUsage)
+	}
+
+	var cmdArgs []string
+	fs := command.Flagset()
+	if len(args) > 2 {
+		cmdArgs = args[2:]
+	}
+
+	if err = fs.Parse(cmdArgs); err != nil {
+		ancli.PrintfErr("failed to parse flagset: %e", err)
+		return 1
+	}
+
+	if err = command.Setup(); err != nil {
+		ancli.PrintfErr("failed to setup command: %e", err)
+		return 1
+	}
+
+	if err = command.Run(ctx); err != nil {
+		ancli.PrintfErr("failed to run %e", err)
+		return 1
+	}
+
+	return 0
 }
 
 func main() {
