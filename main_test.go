@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/pchchv/sws/cmd"
@@ -83,4 +86,47 @@ func Test_Run_ExitCodes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// captureStdout captures stdout when do is called.
+// Restore stdout as test cleanup.
+func captureStdout(t *testing.T, do func(t *testing.T)) string {
+	t.Helper()
+	orig := os.Stdout
+	t.Cleanup(func() {
+		os.Stdout = orig
+	})
+
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	do(t)
+	outC := make(chan string)
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+		outC <- buf.String()
+	}()
+	w.Close()
+	return <-outC
+}
+
+// captureStderr captures stderr content and then restore it once the test is done.
+func captureStderr(t *testing.T, do func(t *testing.T)) string {
+	t.Helper()
+	orig := os.Stderr
+	t.Cleanup(func() {
+		os.Stderr = orig
+	})
+
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	do(t)
+	outC := make(chan string)
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+		outC <- buf.String()
+	}()
+	w.Close()
+	return <-outC
 }
