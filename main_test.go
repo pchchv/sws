@@ -7,6 +7,7 @@ import (
 	"flag"
 	"io"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/pchchv/sws/cmd"
@@ -86,6 +87,50 @@ func Test_Run_ExitCodes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_printHelp_output(t *testing.T) {
+	t.Run("it should print cmd help on cmd.HelpfulError", func(t *testing.T) {
+		want := "hello here is helpful message"
+		mCmd := MockCommand{
+			helpFunc: func() string { return want },
+		}
+		want = want + "\n"
+		got := captureStdout(t, func(t *testing.T) {
+			t.Helper()
+			printHelp(mCmd, cmd.ErrHelpful, func() {})
+		})
+
+		if got != want {
+			t.Fatalf("expected: '%v', got: '%v'", want, got)
+		}
+	})
+
+	t.Run("it should print error and usage on invalid argument", func(t *testing.T) {
+		var gotCode int
+		var usageHasBenePrinted bool
+		wantCode := 1
+		wantErr := "here is an error message"
+		mockUsagePrinter := func() {
+			usageHasBenePrinted = true
+		}
+		gotStdErr := captureStderr(t, func(t *testing.T) {
+			t.Helper()
+			gotCode = printHelp(MockCommand{}, cmd.ArgNotFoundError(wantErr), mockUsagePrinter)
+		})
+
+		if gotCode != wantCode {
+			t.Fatalf("expected: %v, got: %v", wantCode, gotCode)
+		}
+
+		if !usageHasBenePrinted {
+			t.Fatal("expected usage to have been printed")
+		}
+
+		if !strings.Contains(gotStdErr, wantErr) {
+			t.Fatalf("expected stdout to contain: '%v', got out: '%v'", wantErr, gotStdErr)
+		}
+	})
 }
 
 // captureStdout captures stdout when do is called.
