@@ -93,7 +93,7 @@ func Test_Setup(t *testing.T) {
 
 	nestedFile := path.Join(nestedDir, "nested.html")
 	os.WriteFile(nestedFile, []byte(mockHtml), 0o777)
-	fs := NewFileServer(8080, "/delta-streamer-ws.js", false, false)
+	fs := NewFileServer(8080, "/delta-streamer-ws.js", false)
 	if _, err := fs.Setup(tmpDir); err != nil {
 		t.Fatalf("failed to setup: %v", err)
 	}
@@ -142,7 +142,7 @@ func Test_Start(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create temp dir: %v", err)
 		}
-		return NewFileServer(8080, "/delta-streamer-ws.js", false, false), testFileSystem{
+		return NewFileServer(8080, "/delta-streamer-ws.js", false), testFileSystem{
 			root:      tmpDir,
 			nestedDir: nestedDir,
 		}
@@ -152,7 +152,7 @@ func Test_Start(t *testing.T) {
 		fs, _ := setup(t)
 		_, err := fs.Setup(t.TempDir())
 		if err != nil {
-			t.Fatalf("failed to setup test fileserver: %v", err)
+			t.Fatalf("failed to setup test fileserver: %e", err)
 		}
 
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), time.Second)

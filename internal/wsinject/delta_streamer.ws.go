@@ -13,7 +13,7 @@ function startWebsocket() {
   }
 
   // Establish a connection with the WebSocket server
-  const socket = new WebSocket('ws%v://localhost:%v%v');
+  const socket = new WebSocket('ws://localhost:%v%v');
 
   // Event handler for when the WebSocket connection is established
   socket.addEventListener('open', function (event) {
@@ -36,7 +36,7 @@ function startWebsocket() {
       event.data.includes(".css") ||
       // This funny-looking comparison is set using string interpolation from the -forceReload flag
       // when writing this script
-      % v === true
+      %v === true
     ) {
       location.reload();
     }
@@ -45,9 +45,6 @@ function startWebsocket() {
   // Event handler for when the WebSocket connection is closed
   socket.addEventListener('close', function (event) {
     console.log('Disconnected from the WebSocket server');
-    // The socket is dead. Let's make a new one (and keep trying until sws backend
-    // process is back up again)
-    setTimeout(startWebsocket, 3000)
   });
 
   // Event handler for when an error occurs with the WebSocket connection

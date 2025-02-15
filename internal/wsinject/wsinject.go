@@ -27,7 +27,6 @@ type Fileserver struct {
 	masterPath            string
 	mirrorPath            string
 	forceReload           bool
-	expectTLS             bool
 	wsPort                int
 	wsPath                string
 	watcher               *fsnotify.Watcher
@@ -37,7 +36,7 @@ type Fileserver struct {
 	wsDispatcherStartedMu *sync.Mutex
 }
 
-func NewFileServer(wsPort int, wsPath string, forceReload, expectTLS bool) *Fileserver {
+func NewFileServer(wsPort int, wsPath string, forceReload bool) *Fileserver {
 	mirrorDir, err := os.MkdirTemp("", "sws_*")
 	if err != nil {
 		panic(err)
@@ -48,7 +47,6 @@ func NewFileServer(wsPort int, wsPath string, forceReload, expectTLS bool) *File
 		mirrorPath:            mirrorDir,
 		wsPort:                wsPort,
 		wsPath:                wsPath,
-		expectTLS:             expectTLS,
 		forceReload:           forceReload,
 		pageReloadChan:        make(chan string),
 		wsDispatcher:          sync.Map{},
@@ -152,14 +150,9 @@ func injectWebsocketScript(b []byte) (bool, []byte, error) {
 }
 
 func (fs *Fileserver) writeDeltaStreamerScript() error {
-	var tlsS string
-	if fs.expectTLS {
-		tlsS = "s"
-	}
-
 	err := os.WriteFile(
 		path.Join(fs.mirrorPath, "delta-streamer.js"),
-		[]byte(fmt.Sprintf(deltaStreamerSourceCode, tlsS, fs.wsPort, fs.wsPath, fs.forceReload)),
+		[]byte(fmt.Sprintf(deltaStreamerSourceCode, fs.wsPort, fs.wsPath, fs.forceReload)),
 		0o755)
 	if err != nil {
 		return fmt.Errorf("failed to write delta-streamer.js: %e", err)
