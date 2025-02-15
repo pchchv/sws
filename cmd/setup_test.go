@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/pchchv/sws/cmd/server"
@@ -41,4 +42,19 @@ func Test_Parse(t *testing.T) {
 			t.Fatalf("expected to get HelpfulError, got: %e", err)
 		}
 	})
+}
+
+func TestFormatCommandDescriptions(t *testing.T) {
+	// set up mock commands
+	commands = map[string]Command{
+		"testCmd": server.Command(),
+	}
+
+	// call the testing function
+	result := formatCommandDescriptions()
+
+	// check if the returned string contains the expected command descriptions
+	if !strings.Contains(result, "testCmd") {
+		t.Errorf("Expected formatted command descriptions to contain testCmd, got '%s'", result)
+	}
 }
