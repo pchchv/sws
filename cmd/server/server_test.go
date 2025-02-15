@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/gorilla/websocket"
@@ -70,4 +71,15 @@ func Test_Setup(t *testing.T) {
 			t.Fatalf("expected: %v, got: %v", want, got)
 		}
 	})
+}
+
+// createTestFile creates test file or fatal trying.
+// Since it t.Fatalf on failure, return value won't matter.
+// So the return value can be assumed to never be nil.
+func createTestFile(t *testing.T, fileName string) *os.File {
+	file, err := os.Create(fmt.Sprintf("%v/%v", t.TempDir(), fileName))
+	if err != nil {
+		t.Fatalf("failed to create file: %e", err)
+	}
+	return file
 }
