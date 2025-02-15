@@ -11,10 +11,11 @@ import (
 )
 
 var (
-	slogger  *slog.Logger
-	SlogIt   = false
-	useColor = os.Getenv("NO_COLOR") != "true"
-	Newline  = false || strings.ToLower(os.Getenv("ANCLI_NEWLINE")) == "true"
+	slogger       *slog.Logger
+	SlogIt        = false
+	useColor      = os.Getenv("NO_COLOR") != "true"
+	printWarnings = !truthy(os.Getenv("NO_WARNINGS"))
+	Newline       = false || strings.ToLower(os.Getenv("ANCLI_NEWLINE")) == "true"
 )
 
 type colorCode int
@@ -97,4 +98,29 @@ func PrintfOK(msg string, a ...any) {
 
 func Okf(msg string, a ...any) {
 	PrintOK(fmt.Sprintf(msg, a...))
+}
+
+func truthy(v any) bool {
+	switch v := v.(type) {
+	case bool:
+		return v
+	case int:
+		return v == 1
+	case string:
+		if v == "" {
+			return false
+		}
+
+		v = strings.TrimSpace(strings.ToLower(v))
+		switch v {
+		case "1":
+			fallthrough
+		case "true":
+			return true
+		}
+	default:
+		return v != nil
+	}
+
+	return false
 }
