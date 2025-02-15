@@ -100,6 +100,16 @@ func Okf(msg string, a ...any) {
 	PrintOK(fmt.Sprintf(msg, a...))
 }
 
+func PrintWarn(msg string) {
+	if printWarnings {
+		printStatus(os.Stdout, "warning", msg, YELLOW)
+	}
+}
+
+func PrintfWarn(msg string, a ...any) {
+	PrintWarn(fmt.Sprintf(msg, a...))
+}
+
 func truthy(v any) bool {
 	switch v := v.(type) {
 	case bool:
