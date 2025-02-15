@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/pchchv/sws/cmd"
 	"github.com/pchchv/sws/helpers/ancli"
+	"github.com/pchchv/sws/helpers/shutdown"
 )
 
 func printHelp(command cmd.Command, err error, printUsage cmd.UsagePrinter) int {
@@ -64,4 +66,13 @@ func main() {
 	ancli.Newline = true
 	ancli.SlogIt = true
 	ancli.SetupSlog()
+	ctx, cancel := context.WithCancel(context.Background())
+	exitCodeChan := make(chan int, 1)
+	go func() {
+		exitCodeChan <- run(ctx, os.Args, cmd.Parse)
+		cancel()
+	}()
+
+	shutdown.Monitor(ctx, cancel)
+	os.Exit(<-exitCodeChan)
 }
